@@ -33,6 +33,13 @@ const tasksController = {
       })
     }
 
+    if (priority && !["LOW", "MEDIUM", "HIGH"].includes(priority.toUpperCase())) {
+      return res.status(400).json({
+        success: false,
+        error: "Priority must be one of: LOW, MEDIUM, HIGH",
+      })
+    }
+
     const task = TaskModel.create({
       title,
       description,
@@ -48,6 +55,20 @@ const tasksController = {
     const task = TaskModel.findById(req.params.id)
     if (!task) {
       return res.status(404).json({ success: false, error: "Task not found" })
+    }
+
+    if (req.body.status && !VALID_STATUSES.includes(req.body.status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Status must be one of: ${VALID_STATUSES.join(", ")}`,
+      })
+    }
+
+    if (req.body.priority && !["LOW", "MEDIUM", "HIGH"].includes(req.body.priority.toUpperCase())) {
+      return res.status(400).json({
+        success: false,
+        error: "Priority must be one of: LOW, MEDIUM, HIGH",
+      })
     }
 
     const updated = TaskModel.update(req.params.id, req.body)
@@ -74,12 +95,20 @@ const tasksController = {
         .status(400)
         .json({ success: false, error: "New status is required" })
     }
+
+    if (!VALID_STATUSES.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Status must be one of: ${VALID_STATUSES.join(", ")}`,
+      })
+    }
+
     const updated = TaskModel.update(req.params.id, { status })
     res.json({ success: true, data: updated })
   },
 
   getStats(req, res) {
-    const tasks = TaskModel.getAll()
+    const tasks = TaskModel.findAll()
 
     const byStatus = tasks.reduce((acc, task) => {
       acc[task.status] = (acc[task.status] || 0) + 1
@@ -93,6 +122,7 @@ const tasksController = {
 
     const now = new Date()
     const overdue = tasks.filter((task) => {
+      if (task.dueDate === null) return true
       const due = new Date(task.dueDate)
       return due < now
     }).length
