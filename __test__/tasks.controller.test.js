@@ -3,7 +3,6 @@ const tasksController = require("../src/controllers/tasks.controller")
 
 jest.mock("../src/models/tasks.model")
 
-
 // Because there is no services, it was all implemented in the controller 
 // Given by the AI Claude Code to help with the expect of the res values
 function mockRes() {
@@ -68,18 +67,6 @@ describe("getTaskById", () => {
   })
 
   it("return task when it exists and match the id", () => {
-    const task = { id: "1", title: "A" }
-    TaskModel.findById.mockReturnValue(task)
-    const req = { params: { id: "1" } }
-    const res = mockRes()
-
-    tasksController.getTaskById(req, res)
-
-    expect(res.status).not.toHaveBeenCalled()
-    expect(res.json).toHaveBeenCalledWith({ success: true, data: task })
-  })
-
-  it("returns 200 with the task when found", () => {
     const task = { id: "1", title: "A" }
     TaskModel.findById.mockReturnValue(task)
     const req = { params: { id: "1" } }
@@ -181,7 +168,7 @@ describe("updateTask", () => {
     expect(TaskModel.update).not.toHaveBeenCalled()
   })
 
-  it("updates and returns the task when it exists", () => {
+  it("update and return the task when it exists", () => {
     const existing = { id: "1", title: "Old" }
     const updated = { id: "1", title: "New" }
     TaskModel.findById.mockReturnValue(existing)
@@ -303,5 +290,61 @@ describe("moveTask", () => {
     tasksController.moveTask(req, res)
 
     expect(res.status).toHaveBeenCalledWith(400)
+  })
+})
+
+describe("getStats", () => {
+  it("returns totals, byStatus, byPriority, and overdue count", () => {
+    const now = new Date("2026-06-17T00:00:00Z")
+    jest.useFakeTimers().setSystemTime(now)
+
+    TaskModel.findAll.mockReturnValue([
+      { status: "todo", priority: "high", dueDate: "2026-07-01" },
+      { status: "todo", priority: "low", dueDate: "2026-07-01" },
+      { status: "done", priority: "high", dueDate: "2026-01-01" },
+    ])
+
+    const req = {}
+    const res = mockRes()
+
+    tasksController.getStats(req, res)
+
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      data: {
+        total: 3,
+        byStatus: { todo: 2, done: 1 },
+        byPriority: { high: 2, low: 1 },
+        overdue: 1,
+      },
+    })
+  })
+
+  it("does not count tasks with missing dueDate as overdue", () => {
+    TaskModel.findAll.mockReturnValue([
+      { status: "todo", priority: "high", dueDate: undefined },
+    ])
+
+    const req = {}
+    const res = mockRes()
+
+    tasksController.getStats(req, res)
+
+    const payload = res.json.mock.calls[0][0]
+    expect(payload.data.overdue).toBe(0)
+  })
+
+  it("does not count tasks with dueDate: null as overdue", () => {
+    TaskModel.findAll.mockReturnValue([
+      { status: "todo", priority: "high", dueDate: null },
+    ])
+
+    const req = {}
+    const res = mockRes()
+
+    tasksController.getStats(req, res)
+
+    const payload = res.json.mock.calls[0][0]
+    expect(payload.data.overdue).toBe(0)
   })
 })

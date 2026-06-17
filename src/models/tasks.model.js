@@ -58,10 +58,6 @@ const TaskModel = {
     return deleted
   },
 
-  getAll() {
-    return tasks
-  },
-
   reset() {
     tasks = JSON.parse(fs.readFileSync(seedPath, "utf-8"))
     nextId = tasks.reduce((max, t) => Math.max(max, t.id), 0) + 1
